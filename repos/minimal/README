@@ -1,0 +1,5 @@
+This repository contains the source code of a even further stripped-down version of
+the 'Hello' client-server tutorial.
+
+It starts up 3 processes that print a message to the serial console and then wait some
+time in a busy loop.
