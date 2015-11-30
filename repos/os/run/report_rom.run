@@ -29,7 +29,7 @@ install_config {
 			<provides> <service name="ROM"/> <service name="Report"/> </provides>
 			<config>
 				<rom>
-					<policy label="test-report_rom -> brightness"
+					<policy label_suffix="brightness"
 					       report="test-report_rom -> brightness"/>
 				</rom>
 			</config>

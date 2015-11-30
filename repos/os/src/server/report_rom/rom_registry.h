@@ -16,6 +16,7 @@
 
 /* Genode includes */
 #include <report_rom/rom_registry.h>
+#include <os/session_policy.h>
 
 namespace Rom { struct Registry; }
 
@@ -115,23 +116,41 @@ struct Rom::Registry : Registry_for_reader, Registry_for_writer, Genode::Noncopy
 		 */
 		Module::Name _report_name(Module::Name const &rom_label) const
 		{
-			try {
-				for (Xml_node node = _config.sub_node("policy");
-				     true; node = node.next("policy")) {
+			using namespace Genode;
 
-					if (!node.has_attribute("label")
-					 || !node.has_attribute("report")
-					 || !node.attribute("label").has_value(rom_label.string()))
-					 	continue;
+			char const *label = rom_label.string();
 
-					char report[Rom::Module::Name::capacity()];
-					node.attribute("report").value(report, sizeof(report));
-					return Rom::Module::Name(report);
+			/*
+			 * Find policy node that matches best
+			 */
+			Xml_node best_match("<none/>");
+			Xml_node_label_score best_score;
+
+			/*
+			 * Functor to be applied to each policy node
+			 */
+			auto lambda = [&] (Xml_node policy) {
+				if (!policy.has_attribute("report"))
+					return;
+
+				Xml_node_label_score const score(policy, rom_label);
+				if (score.stronger(best_score)) {
+					best_match = policy;
+					best_score = score;
 				}
-			} catch (Xml_node::Nonexistent_sub_node) { }
+			};
 
-			PWRN("no valid policy for label \"%s\"", rom_label.string());
-			throw Root::Invalid_args();
+			_config.for_each_sub_node("policy", lambda);
+
+			if (best_match.has_type("none")) {
+				PWRN("no valid policy for label \"%s\"", label);
+				throw Root::Invalid_args();
+			}
+
+			Genode::String<Rom::Module::Name::capacity()> report;
+
+			best_match.attribute("report").value(&report);
+			return Rom::Module::Name(report.string());
 		}
 
 	public:
