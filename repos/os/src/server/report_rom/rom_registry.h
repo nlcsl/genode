@@ -118,8 +118,6 @@ struct Rom::Registry : Registry_for_reader, Registry_for_writer, Genode::Noncopy
 		{
 			using namespace Genode;
 
-			char const *label = rom_label.string();
-
 			/*
 			 * Find policy node that matches best
 			 */
@@ -143,7 +141,7 @@ struct Rom::Registry : Registry_for_reader, Registry_for_writer, Genode::Noncopy
 			_config.for_each_sub_node("policy", lambda);
 
 			if (best_match.has_type("none")) {
-				PWRN("no valid policy for label \"%s\"", label);
+				PWRN("no valid policy for label \"%s\"", rom_label.string());
 				throw Root::Invalid_args();
 			}
 
