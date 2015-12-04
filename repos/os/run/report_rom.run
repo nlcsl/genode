@@ -27,11 +27,9 @@ install_config {
 		<start name="report_rom">
 			<resource name="RAM" quantum="2M"/>
 			<provides> <service name="ROM"/> <service name="Report"/> </provides>
-			<config>
-				<rom>
-					<policy label_prefix="test-report_rom" label_suffix="brightness"
-					       report="test-report_rom -> brightness"/>
-				</rom>
+			<config verbose="true">
+				<policy label_prefix="test-report_rom" label_suffix="brightness"
+				       report="test-report_rom -> brightness"/>
 			</config>
 		</start>
 		<start name="test-report_rom">

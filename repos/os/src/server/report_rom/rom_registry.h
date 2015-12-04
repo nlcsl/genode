@@ -27,8 +27,6 @@ struct Rom::Registry : Registry_for_reader, Registry_for_writer, Genode::Noncopy
 
 		Genode::Allocator &_md_alloc;
 
-		Xml_node _config;
-
 		Module_list _modules;
 
 		struct Read_write_policy : Module::Read_policy, Module::Write_policy
@@ -118,44 +116,30 @@ struct Rom::Registry : Registry_for_reader, Registry_for_writer, Genode::Noncopy
 		{
 			using namespace Genode;
 
-			/*
-			 * Find policy node that matches best
-			 */
-			Xml_node best_match("<none/>");
-			Xml_node_label_score best_score;
-
-			/*
-			 * Functor to be applied to each policy node
-			 */
-			auto lambda = [&] (Xml_node policy) {
-				if (!policy.has_attribute("report"))
-					return;
-
-				Xml_node_label_score const score(policy, rom_label);
-				if (score.stronger(best_score)) {
-					best_match = policy;
-					best_score = score;
-				}
-			};
-
-			_config.for_each_sub_node("policy", lambda);
-
-			if (best_match.has_type("none")) {
-				PWRN("no valid policy for label \"%s\"", rom_label.string());
-				throw Root::Invalid_args();
-			}
-
 			Genode::String<Rom::Module::Name::capacity()> report;
 
-			best_match.attribute("report").value(&report);
+			try {
+				Session_policy policy(rom_label);
+				policy.attribute("report").value(&report);
+			} catch (Session_policy::No_policy_defined) {
+				/* XXX: backwards compatibility, remove at next release */
+
+				Xml_node rom_node = config()->xml_node().sub_node("rom");
+				PWRN("parsing legacy <rom> policies");
+
+				Session_policy policy(rom_label, rom_node);
+				policy.attribute("report").value(&report);
+
+			} catch (...) { throw Root::Unavailable(); }
+
 			return Rom::Module::Name(report.string());
 		}
 
 	public:
 
-		Registry(Genode::Allocator &md_alloc, Xml_node config)
+		Registry(Genode::Allocator &md_alloc)
 		:
-			_md_alloc(md_alloc), _config(config)
+			_md_alloc(md_alloc)
 		{ }
 
 		Module &lookup(Writer &writer, Module::Name const &name) override
