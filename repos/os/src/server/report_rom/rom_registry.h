@@ -116,23 +116,27 @@ struct Rom::Registry : Registry_for_reader, Registry_for_writer, Genode::Noncopy
 		{
 			using namespace Genode;
 
-			Genode::String<Rom::Module::Name::capacity()> report;
+			String<Rom::Module::Name::capacity()> report;
 
 			try {
 				Session_policy policy(rom_label);
 				policy.attribute("report").value(&report);
+				return Rom::Module::Name(report.string());
 			} catch (Session_policy::No_policy_defined) {
-				/* XXX: backwards compatibility, remove at next release */
+				/* FIXME backwards compatibility, remove at next release */
+				try {
+					Xml_node rom_node = config()->xml_node().sub_node("rom");
+					PWRN("parsing legacy <rom> policies");
 
-				Xml_node rom_node = config()->xml_node().sub_node("rom");
-				PWRN("parsing legacy <rom> policies");
+					Session_policy policy(rom_label, rom_node);
+					policy.attribute("report").value(&report);
+					return Rom::Module::Name(report.string());
+				} catch (Xml_node::Nonexistent_sub_node)    { /* no <rom> node */ }
+				  catch (Session_policy::No_policy_defined) { }
+			}
 
-				Session_policy policy(rom_label, rom_node);
-				policy.attribute("report").value(&report);
-
-			} catch (...) { throw Root::Unavailable(); }
-
-			return Rom::Module::Name(report.string());
+			PWRN("no valid policy for label \"%s\"", rom_label.string());
+			throw Root::Invalid_args();
 		}
 
 	public:
