@@ -118,6 +118,10 @@ class Genode::Cpu
 			{
 				protection_domain(pd_id);
 				translation_table(table);
+				asm volatile ("csrrw t0, sasid, x0\n"
+							  "sfence.vm\n"
+							  "csrw sasid, t0\n"
+							  :::"t0");
 			}
 
 			/**
@@ -145,7 +149,10 @@ class Genode::Cpu
 		 */
 		static void tlb_insertions()
 		{
-			asm volatile ("sfence.vm x0");
+			asm volatile ("csrrw t0, sasid, x0\n"
+						  "sfence.vm\n"
+						  "csrw sasid, t0\n"
+						  :::"t0");
 		}
 
 		/**
@@ -161,7 +168,10 @@ class Genode::Cpu
 		 */
 		static void translation_added(addr_t const addr, size_t const size)
 		{
-			PDBG("not impl");
+			asm volatile ("csrrw t0, sasid, x0\n"
+						  "sfence.vm\n"
+						  "csrw sasid, t0\n"
+						  :::"t0");
 		}
 
 		/**
@@ -176,7 +186,10 @@ class Genode::Cpu
 
 		static void flush_tlb_by_pid(unsigned const pid)
 		{
-			PDBG("not impl");
+			asm volatile ("csrrw t0, sasid, x0\n"
+						  "sfence.vm\n"
+						  "csrw sasid, t0\n"
+						  :::"t0");
 		}
 
 		/**
@@ -200,14 +213,42 @@ class Genode::Cpu
 
 		static void start_secondary_cpus(void * const ip) { }
 
-		static void invalidate_instr_caches() { }
+		static void invalidate_instr_caches() {
+			asm volatile ("csrrw t0, sasid, x0\n"
+						  "sfence.vm\n"
+						  "csrw sasid, t0\n"
+						  :::"t0");
+		}
 
-		static void invalidate_data_caches() { }
-		static void flush_data_caches() { }
+		static void invalidate_data_caches() {
+			asm volatile ("csrrw t0, sasid, x0\n"
+						  "sfence.vm\n"
+						  "csrw sasid, t0\n"
+						  :::"t0");
+		}
+
+		static void flush_data_caches() {
+			asm volatile ("csrrw t0, sasid, x0\n"
+						  "sfence.vm\n"
+						  "csrw sasid, t0\n"
+						  :::"t0");
+		}
+
 		static void
-		flush_data_caches_by_virt_region(addr_t base, size_t const size) { }
+		flush_data_caches_by_virt_region(addr_t base, size_t const size) {
+			asm volatile ("csrrw t0, sasid, x0\n"
+						  "sfence.vm\n"
+						  "csrw sasid, t0\n"
+						  :::"t0");
+		}
+
 		static void
-		invalidate_instr_caches_by_virt_region(addr_t base, size_t const size) { }
+		invalidate_instr_caches_by_virt_region(addr_t base, size_t const size) {
+			asm volatile ("csrrw t0, sasid, x0\n"
+						  "sfence.vm\n"
+						  "csrw sasid, t0\n"
+						  :::"t0");
+		}
 
 		static void data_synchronization_barrier()
 		{
