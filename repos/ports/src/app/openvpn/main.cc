@@ -16,6 +16,7 @@
 #include <nic/component.h>
 #include <root/component.h>
 #include <libc/component.h>
+#include <libc/allocator.h>
 #include <base/heap.h>
 #include <base/attached_rom_dataspace.h>
 
@@ -36,26 +37,75 @@ static int const verbose = false;
 extern "C" int openvpn_main( int, char*[] );
 
 
-class Openvpn_thread : public Genode::Thread
+class Openvpn
 {
 	private:
 
-		int _argc;
-		char **_argv;
-		int _exitcode;
+		Genode::Semaphore _startup;
+
+		struct Arg {
+			int    c;
+			char **v;
+		} _arg;
+
+		Arg _extract_arg(Libc::Env &env, Genode::Allocator &alloc) const
+		{
+			Arg arg;
+
+			env.config([&] (Genode::Xml_node config) {
+
+				arg.c = 0;
+				config.for_each_sub_node("arg", [&] (Genode::Xml_node const &node) {
+					/* check if the 'value' attribute exists */
+					if (node.has_attribute("value"))
+						++arg.c;
+				});
+
+				arg.v = new (alloc) char*[arg.c];
+
+				int arg_i = 0;
+
+				config.for_each_sub_node( "arg", [&] (Genode::Xml_node const &node) {
+					/* insert an argument */
+					try {
+						Genode::Xml_attribute attr = node.attribute("value");
+
+						Genode::size_t const arg_len = attr.value_size() + 1;
+						char *a = arg.v[arg_i] = new (alloc) char[arg_len];
+
+						attr.value(a, arg_len);
+						++arg_i;
+
+					} catch (Genode::Xml_node::Nonexistent_attribute) { }
+				});
+			});
+
+			return arg;
+		}
 
 	public:
-		Openvpn_thread( Genode::Env &env, int argc, char * argv[] )
-			:
-			Thread( env, "openvpn_main", 16UL * 1024 * sizeof( long ) ),
-			_argc( argc ), _argv( argv ),
-			_exitcode( -1 )
-		{ }
 
-		void entry()
+		Openvpn(Libc::Env &env, Genode::Allocator &alloc)
+		: _arg(_extract_arg(env, alloc)) { }
+
+		~Openvpn()
 		{
-			_exitcode = ::openvpn_main( _argc, _argv );
-		};
+//			for (int i = 0; i < argc; i++)
+//				Genode::destroy( _alloc, argv[i] );
+//
+//			Genode::destroy( _alloc, argv );
+		}
+
+		void start() { _startup.up(); }
+
+		int run()
+		{
+			_startup.down();
+
+			return Libc::with_libc([&] () {
+				return ::openvpn_main(_arg.c, _arg.v);
+			});
+		}
 };
 
 
@@ -200,12 +250,11 @@ class Root : public
 	Genode::Root_component<Openvpn_component, Genode::Single_client>
 {
 	private:
+
 		Genode::Env &_env;
 		Genode::Allocator &_alloc;
 
-		Openvpn_thread     *_thread = nullptr;
-		char **argv;
-		int argc;
+		Openvpn &_openvpn;
 
 	protected:
 
@@ -242,47 +291,15 @@ class Root : public
 
 			Openvpn_component *component = new( Root::md_alloc() )
 				Openvpn_component( _env, tx_buf_size, rx_buf_size, _alloc );
-			/**
+
+			/*
 			 * Setting the pointer in this manner is quite hackish but it has
 			 * to be valid before OpenVPN calls open_tun(), which unfortunatly
 			 * is early.
 			 */
 			_tuntap_dev = component;
 
-			/* 
-			 *Extract argc and argv 
-			 */
-			Genode::Attached_rom_dataspace config { _env, "config" };
-			Genode::Xml_node node = config.xml();
-
-			argc = 0;
-			node.for_each_sub_node("arg", [&] (Xml_node const &node) {
-				/* check if the 'value' attribute exists */
-				if (node.has_attribute("value"))
-					++argc;
-			} );
-
-			argv = new (_alloc) char*[argc];
-
-			int arg_i = 0;
-
-			node.for_each_sub_node( "arg", [&] (Xml_node const &node) {
-			/* insert an argument */
-				try {
-					Genode::Xml_attribute attr = node.attribute("value");
-
-					Genode::size_t const arg_len = attr.value_size()+1;
-					char *arg = argv[arg_i] = new (_alloc) char[arg_len];
-
-					attr.value(arg, arg_len);
-					++arg_i;
-
-				} catch (Genode::Xml_node::Nonexistent_attribute) { }
-			});
-
-			_thread = new( _alloc ) Openvpn_thread( _env, argc, argv);
-
-			_thread->start();
+			_openvpn.start();
 
 			/* wait until OpenVPN configured the TUN/TAP device for the first time */
 			_tuntap_dev->down();
@@ -293,42 +310,42 @@ class Root : public
 		void _destroy_session( Openvpn_component *session )
 		{
 			Genode::destroy( Root::md_alloc(), session );
-			Genode::destroy( _alloc, _thread );
-			_thread = nullptr;
-
-			for (int i = 0; i < argc; i++)
-				Genode::destroy( _alloc, argv[i] );
-
-			Genode::destroy( _alloc, argv );
+//			_openvpn.stop();
 		}
 
 	public:
 
-		Root( Genode::Env &env, Genode::Allocator &md_alloc )
-			: Genode::Root_component<Openvpn_component, Genode::Single_client>
-			( env.ep(), md_alloc ),
-			_env( env ),
-			_alloc( md_alloc )
+		Root(Genode::Env &env, Genode::Entrypoint &ep, Genode::Allocator &md_alloc,
+		     Openvpn &openvpn)
+		:
+			Genode::Root_component<Openvpn_component, Genode::Single_client>(ep, md_alloc),
+			_env(env), _alloc(md_alloc), _openvpn(openvpn)
 		{ }
 };
 
 
-struct Main
+struct Server
 {
-	Genode::Env &_env;
-	Genode::Heap _heap;
+	Libc::Env       &_env;
+	Libc::Allocator  _heap;
+
+	Openvpn _openvpn { _env, _heap };
+
+	Genode::Entrypoint _ep { _env, 64*1024, "server_ep" };
+
 	::Root _nic_root;
 	
-	Main( Genode::Env &env ):
-		_env( env ),
-		_heap( _env.ram(), _env.rm() ),
-		_nic_root( _env, _heap )
+	Server(Libc::Env &env) : _env(env), _nic_root(_env, _ep, _heap, _openvpn)
 	{
-		_env.parent().announce(_env.ep().manage(_nic_root));		
+		_env.parent().announce(_ep.manage(_nic_root));
 	}
+
+	int run_openvpn() { return _openvpn.run(); }
 };
 
 void Libc::Component::construct( Libc::Env &env )
 {
-	static Main server( env );
+	static Server server(env);
+
+	env.parent().exit(server.run_openvpn());
 }
