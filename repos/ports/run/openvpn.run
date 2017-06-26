@@ -1,0 +1,186 @@
+set build_components {
+	core init
+	app/openvpn
+	drivers/timer
+	drivers/rtc
+	drivers/nic
+	test/lwip/http_clnt
+	lib/vfs/lxip
+	server/vfs
+}
+
+source ${genode_dir}/repos/base/run/platform_drv.inc
+
+append_platform_drv_build_components
+
+build $build_components
+
+create_boot_directory
+
+#
+# Generate config
+#
+
+set config {
+<config verbose="yes" prio_levels="2">
+	<parent-provides>
+		<service name="ROM"/>
+		<service name="LOG"/>
+		<service name="RM"/>
+		<service name="CPU"/>
+		<service name="PD"/>
+		<service name="IRQ"/>
+		<service name="IO_MEM"/>
+		<service name="IO_PORT"/>
+	</parent-provides>
+	<default caps="200"/>
+	<default-route>
+		<any-service> <parent/> <any-child/> </any-service>
+	</default-route>
+}
+
+append_platform_drv_config
+
+append config {
+	<start name="timer" priority="0">
+		<resource name="RAM" quantum="1M"/>
+		<provides><service name="Timer"/></provides>
+	</start>
+
+	<start name="rtc_drv" priority="0">
+		<resource name="RAM" quantum="1M"/>
+		<provides><service name="Rtc"/></provides>
+	</start>
+
+	<start name="nic_drv" priority="-1">
+		<binary name="linux_nic_drv"/>
+		<resource name="RAM" quantum="2M"/>
+		<provides><service name="Nic"/></provides>
+		<route>
+			<service name="Timer"> <child name="timer" /> </service>
+			<any-service> <parent/> <any-child/> </any-service>
+		</route>
+	</start>
+
+	<start name="vfs">
+		<resource name="RAM" quantum="36M"/>
+		<provides> <service name="File_system"/> </provides>
+		<config ld_verbose="yes">
+			<vfs>
+				<lxip ip_addr="172.16.143.48" netmask="255.255.255.0"
+				      gateway="172.16.143.1" nameserver="8.8.8.8"/>
+			</vfs>
+			<libc/>
+			<default-policy writeable="yes" />
+		</config>
+		<route>
+			<service name="Nic">  <child name="nic_drv"/> </service>
+			<any-service> <parent/> <any-child/> </any-service>
+		</route>
+	</start>
+
+	<start name="openvpn">
+		<resource name="RAM" quantum="8M"/>
+		<provides> <service name="Nic"/> </provides>
+		<config>
+			<arg value="openvpn"/>
+			<arg value="--config"/>
+			<arg value="/client.conf"/>
+			<!--<arg value="-remote"/>
+			<arg value=""/>-->
+			<libc stdout="/dev/log" stderr="/dev/log" rtc="/dev/rtc" socket="/socket"/>
+				<!--ip_addr="172.16.143.48" gateway="172.16.143.1" netmask="255.255.255.0"/> -->
+			<vfs>
+				<dir name="dev">
+					<log/> <rtc/>
+					<inline name="random">
+hkxdRTsuvXSgJK19acn6aaksWlObzX2VcbmndEhUYvPEYfF+Nms5xzYHFn3I6v4rfNZTO9WUv6yt
+uK6lRXU/o0n0hXG/TH1sPzqYogdmrdvFiTjVKpaR+QaAq0SUdf+OLP0yiSHmJGrpmfoqS944gKWh
+hHPudn1WzJ5Zg/3N2pfNz5Jqo8FDZXhNyYujImN4XCBHGou+7hnI34NuK3fDoP10GVcpDB89drXG
+SeY7i/osK5VdjGJVlb0ICtJ6Dm+MCuEFAHNMD+IqIclaKWV+Sgs7GMTT+mbpPN5HR6MOQXW1bIjO
+bU1IswF/q56aOSyHlaBiSqTIn6P/e8+kPMQdage/dUIFasglkgd3EtNiJ8QAdzuWwWKX/HoDqP8d
+eG8ENkzfxvRkdYae5feB0oylgCu30YtO7PCxSMGRhsG0nxtAkhaR8BbtLoNYgSSlbZhrX4alwpxj
+qtgUgWc39XvAHxm/iOiadzu98/NdR/FzIvaVn441yL+fd6ZvYMdimuMau1sgzRltISAeynk0i+7y
+fcGf6V0DuE1iz+e7q2+S7A/NXmBnM4uCYIHUNwnXYNKlhyK0UwYT8juu7pPVhqkT+R9eA5U6u5Aw
+eyb7ApAX7V7vFu5ig7iLJG0uKCS4VEUZUmXCfRoPopk+ya8GJ6XDTZ+bDC3c5+9Zn6Xphv6VO+4=
+					</inline>
+				</dir>
+				<dir name="socket"> <fs/> </dir>
+				<inline name="client.conf">
+					client
+					dev tap0
+					proto udp
+					
+					tun-mtu 1500
+					remote 172.16.143.29 1194
+					nobind
+					ca /ca.crt
+					cert /client.crt
+					key /client.key
+					remote-cert-tls server
+
+					cipher AES-256-CBC
+					auth SHA256
+					verb 6
+				</inline>
+				<rom name="ca.crt"/>
+				<rom name="client.crt"/>
+				<rom name="client.key"/>
+			</vfs>
+		</config>
+		<route>
+			<service name="File_system"> <child name="vfs" /> </service>
+			<service name="Timer">  <child name="timer" />   </service>
+			<service name="Rtc">    <child name="rtc_drv" /> </service>
+			<any-service> <parent/> </any-service>
+		</route>
+	</start>
+
+	<start name="test-http_clnt">
+		<resource name="RAM" quantum="32M"/>
+		<route>
+			<service name="Nic"> <child name="openvpn"/> </service>
+			<any-service> <parent/> <any-child/> </any-service>
+		</route>
+		<config server_ip="172.16.143.29" server_port="80">
+			<vfs> <dir name="dev"> <log/> </dir> </vfs>
+			<libc stdout="/dev/log" stderr="/dev/log"/>
+		</config>
+	</start>
+
+</config> }
+
+install_config $config
+
+#
+# copy keys and certificates
+#
+foreach file { ca.crt client.crt client.key } {
+	file copy -force [genode_dir]/repos/csl/openvpn/bin/$file bin/ }
+
+#
+# Boot modules
+#
+set boot_modules {
+	core ld.lib.so init
+	timer rtc_drv
+	linux_nic_drv
+	openvpn
+	libc.lib.so libm.lib.so  libc_pipe.lib.so
+	vfs_lxip.lib.so lxip.lib.so vfs libc_resolv.lib.so
+	libcrypto.lib.so libssl.lib.so
+	ca.crt client.crt client.key
+	test-http_clnt lwip.lib.so
+}
+
+append_platform_drv_boot_modules
+
+build_boot_image  $boot_modules
+
+append qemu_args " -m 512 "
+
+append_if [have_spec x86]     qemu_args " -net nic,model=pcnet "
+
+append qemu_args " -net user "
+
+run_genode_until forever
