@@ -50,12 +50,7 @@ class Openvpn_thread : public Genode::Thread
 			Thread( env, "openvpn_main", 16UL * 1024 * sizeof( long ) ),
 			_argc( argc ), _argv( argv ),
 			_exitcode( -1 )
-		{
-			for (int i = 0; i < _argc; i++) {
-				const char *str = const_cast<char *>(_argv[i]);
-				Genode::log("_argv[", i, "]: '", str, "'");
-			}
-		}
+		{ }
 
 		void entry()
 		{

@@ -155,8 +155,8 @@ install_config $config
 #
 # copy keys and certificates
 #
-foreach file { ca.crt client.crt client.key } {
-	file copy -force [genode_dir]/repos/csl/openvpn/bin/$file bin/ }
+foreach file { ca.crt issued/client.crt private/client.key } {
+	file copy -force [genode_dir]/repos/ports/run/pki/$file bin/ }
 
 #
 # Boot modules
