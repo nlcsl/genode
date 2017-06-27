@@ -43,11 +43,12 @@ void Libc::Component::construct(Libc::Env &env)
 
 	static Timer::Connection _timer(env);
 	_timer.msleep(2000);
+	log("tcpip init...");
 	lwip_tcpip_init();
+	log("done");
 
 	uint32_t ip = 0, nm = 0, gw = 0;
 	Address serv_addr, ip_addr, netmask, gateway;
-
 	Attached_rom_dataspace config(env, "config");
 	Xml_node config_node = config.xml();
 	Xml_node libc_node   = env.libc_config();
@@ -60,12 +61,13 @@ void Libc::Component::construct(Libc::Env &env)
 		gw = inet_addr(gateway.string());
 	} catch (...) {}
 	config_node.attribute("server_ip").value(&serv_addr);
-
+	log("nic init");
 	if (lwip_nic_init(ip, nm, gw, BUF_SIZE, BUF_SIZE)) {
 		error("We got no IP address!");
 		exit(1);
 	}
-
+	
+	log("done");
 	for(int j = 0; j != 5; ++j) {
 		_timer.msleep(2000);
 

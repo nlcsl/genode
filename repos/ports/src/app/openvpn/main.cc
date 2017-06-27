@@ -262,6 +262,8 @@ class Root : public
 		{
 			using namespace Genode;
 
+			log("trying to create new nic session");
+
 			size_t ram_quota   = Arg_string::find_arg( args, "ram_quota" ).ulong_value( 0 );
 			size_t tx_buf_size = Arg_string::find_arg( args,
 			                     "tx_buf_size" ).ulong_value( 0 );
@@ -289,6 +291,7 @@ class Root : public
 				throw Ram_transfer::Quota_exceeded();
 			}
 
+			log(__LINE__);
 			Openvpn_component *component = new( Root::md_alloc() )
 				Openvpn_component( _env, tx_buf_size, rx_buf_size, _alloc );
 
@@ -298,12 +301,12 @@ class Root : public
 			 * is early.
 			 */
 			_tuntap_dev = component;
-
+			log(__LINE__);
 			_openvpn.start();
-
+			log(__LINE__);
 			/* wait until OpenVPN configured the TUN/TAP device for the first time */
 			_tuntap_dev->down();
-
+			log(__LINE__);
 			return component;
 		}
 

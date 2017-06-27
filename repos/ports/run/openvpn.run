@@ -67,8 +67,9 @@ append config {
 		<provides> <service name="File_system"/> </provides>
 		<config ld_verbose="yes">
 			<vfs>
-				<lxip ip_addr="172.16.143.48" netmask="255.255.255.0"
-				      gateway="172.16.143.1" nameserver="8.8.8.8"/>
+				<lxip dhcp="yes"/>
+					  <!--ip_addr="172.16.143.48" netmask="255.255.255.0"
+				      gateway="172.16.143.1" nameserver="8.8.8.8"/>-->
 			</vfs>
 			<libc/>
 			<default-policy writeable="yes" />
@@ -86,8 +87,6 @@ append config {
 			<arg value="openvpn"/>
 			<arg value="--config"/>
 			<arg value="/client.conf"/>
-			<!--<arg value="-remote"/>
-			<arg value=""/>-->
 			<libc stdout="/dev/log" stderr="/dev/log" rtc="/dev/rtc" socket="/socket"/>
 				<!--ip_addr="172.16.143.48" gateway="172.16.143.1" netmask="255.255.255.0"/> -->
 			<vfs>
@@ -111,7 +110,7 @@ eyb7ApAX7V7vFu5ig7iLJG0uKCS4VEUZUmXCfRoPopk+ya8GJ6XDTZ+bDC3c5+9Zn6Xphv6VO+4=
 					dev tap0
 					proto udp
 					
-					tun-mtu 1500
+					link-mtu 1500
 					remote 172.16.143.29 1194
 					nobind
 					ca /ca.crt
