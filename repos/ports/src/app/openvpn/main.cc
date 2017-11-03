@@ -127,6 +127,7 @@ class Openvpn_component : public Tuntap_device,
 {
 	private:
 		Genode::Env &_env;
+		Genode::Entrypoint &_ep;
 
 		char const *_packet;
 
@@ -140,6 +141,7 @@ class Openvpn_component : public Tuntap_device,
 
 		bool _send()
 		{
+			//Genode::error("Openvpn_component::_send");
 			using namespace Genode;
 
 			if (!_tx.sink()->ready_to_ack())
@@ -176,11 +178,12 @@ class Openvpn_component : public Tuntap_device,
 
 	public:
 
-		Openvpn_component( Genode::Env &env, Genode::size_t const tx_buf_size,
+		Openvpn_component( Genode::Env &env, Genode::Entrypoint &ep,
+				           Genode::size_t const tx_buf_size,
 		                   Genode::size_t const rx_buf_size,
 		                   Genode::Allocator   &rx_block_md_alloc)
-		: Session_component(tx_buf_size, rx_buf_size, rx_block_md_alloc, env),
-			  _env( env )
+			: Session_component(tx_buf_size, rx_buf_size, rx_block_md_alloc, env, ep),
+			  _env(env), _ep(ep)
 		{
 			if ( pipe( _pipefd ) )
 			{
@@ -240,9 +243,15 @@ class Openvpn_component : public Tuntap_device,
 			return len;
 		}
 
-		void up() { _startup_lock.up(); }
+		void up() { 
+			Genode::error("tuntap::up()");
+			_startup_lock.up(); 
+		}
 
-		void down() { _startup_lock.down(); }
+		void down() { 
+			Genode::error("tuntap::down()");
+			_startup_lock.down(); 
+		}
 };
 
 
@@ -251,6 +260,7 @@ class Root : public Genode::Root_component<Openvpn_component, Genode::Single_cli
 	private:
 
 		Genode::Env &_env;
+		Genode::Entrypoint &_ep;
 		Genode::Allocator &_alloc;
 
 		Openvpn &_openvpn;
@@ -284,8 +294,8 @@ class Root : public Genode::Root_component<Openvpn_component, Genode::Single_cli
 				throw Ram_transfer::Quota_exceeded();
 			}
 
-			Openvpn_component *component = new (Root::md_alloc())
-				Openvpn_component (_env, tx_buf_size, rx_buf_size, _alloc);
+			Openvpn_component *component = new(Root::md_alloc())
+				Openvpn_component(_env, _ep, tx_buf_size, rx_buf_size, _alloc);
 
 			/**
 			 * Setting the pointer in this manner is quite hackish but it has
@@ -314,7 +324,7 @@ class Root : public Genode::Root_component<Openvpn_component, Genode::Single_cli
 		     Openvpn &openvpn)
 		:
 			Genode::Root_component<Openvpn_component, Genode::Single_client>(ep, md_alloc),
-			_env(env), _alloc(md_alloc), _openvpn(openvpn)
+			_env(env), _ep(ep), _alloc(md_alloc), _openvpn(openvpn)
 		{ }
 };
 
