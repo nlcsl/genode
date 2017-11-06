@@ -569,7 +569,7 @@ static ssize_t do_recvfrom(Libc::File_descriptor *fd,
 	if (!len)     return Errno(EINVAL);
 
 	if (src_addr) {
-		Socket_fs::Remote_functor func(*context, context->fd_flags() & O_NONBLOCK);
+		Socket_fs::Remote_functor func(*context, context->fd_flags() & ~O_NONBLOCK);
 		int const res = read_sockaddr_in(func, (sockaddr_in *)src_addr, src_addrlen);
 		if (res < 0) return res;
 	}
