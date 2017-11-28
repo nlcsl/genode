@@ -88,13 +88,7 @@ class Openvpn
 		Openvpn(Libc::Env &env, Genode::Allocator &alloc)
 		: _arg(_extract_arg(env, alloc)) { }
 
-		~Openvpn()
-		{
-//			for (int i = 0; i < argc; i++)
-//				Genode::destroy( _alloc, argv[i] );
-//
-//			Genode::destroy( _alloc, argv );
-		}
+		~Openvpn() {}
 
 		void start() { _startup.up(); }
 
@@ -141,7 +135,6 @@ class Openvpn_component : public Tuntap_device,
 
 		bool _send()
 		{
-			//Genode::error("Openvpn_component::_send");
 			using namespace Genode;
 
 			if (!_tx.sink()->ready_to_ack())
@@ -244,12 +237,12 @@ class Openvpn_component : public Tuntap_device,
 		}
 
 		void up() { 
-			Genode::error("tuntap::up()");
+			Genode::log("tuntap is up");
 			_startup_lock.up(); 
 		}
 
 		void down() { 
-			Genode::error("tuntap::down()");
+			Genode::log("tuntap is down");
 			_startup_lock.down(); 
 		}
 };
@@ -285,7 +278,7 @@ class Root : public Genode::Root_component<Openvpn_component, Genode::Single_cli
 			 * buffers. Also check both sizes separately to handle a
 			 * possible overflow of the sum of both sizes.
 			 */
-			if ( tx_buf_size               > ram_quota - session_size
+			if ( tx_buf_size                     > ram_quota - session_size
 			        || rx_buf_size               > ram_quota - session_size
 			        || tx_buf_size + rx_buf_size > ram_quota - session_size )
 			{
