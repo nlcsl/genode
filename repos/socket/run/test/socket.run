@@ -1,0 +1,95 @@
+#
+# Build
+#
+
+build { 
+	core 
+	drivers/nic
+	drivers/timer 
+	init 
+	lib/vfs/lxip 
+	server/vfs 
+	test/socket 
+}
+
+source ${genode_dir}/repos/base/run/platform_drv.inc
+create_boot_directory
+
+#
+# Generate config
+#
+
+install_config {
+<config>
+	<parent-provides>
+		<service name="LOG"/>
+		<service name="PD"/>
+		<service name="CPU"/>
+		<service name="ROM"/>
+	</parent-provides>
+	<default-route>
+		<any-service> <parent/> <any-child/> </any-service>
+	</default-route>
+	<default caps="200"/>
+
+	<start name="timer">
+		<resource name="RAM" quantum="1M"/>
+		<provides><service name="Timer"/></provides>
+	</start>
+
+	<start name="test-socket">
+		<resource name="RAM" quantum="5M"/>
+		<config>
+			<libc stdout="/dev/log" stderr="/dev/log" socket="/socket"/>
+			<vfs>
+				<dir name="dev"> <log/> </dir>
+				<dir name="socket"> <fs/> </dir>
+			</vfs>
+		</config>
+	</start>
+
+	<start name="nic_drv" priority="-1">
+		<binary name="linux_nic_drv"/>
+		<resource name="RAM" quantum="4M"/>
+		<provides><service name="Nic"/></provides>
+	</start>
+
+	<start name="vfs">
+		<resource name="RAM" quantum="36M"/>
+		<provides> <service name="File_system"/> </provides>
+		<config ld_verbose="yes" verbose="yes">
+			<vfs>
+				<lxip ip_addr="10.0.2.143" netmask="255.255.255.0"
+				      gateway="10.0.2.2" nameserver="8.8.8.8"/>
+			</vfs>
+			<libc/>
+			<default-policy writeable="yes" />
+		</config>
+		<route>
+			<service name="Nic">  <child name="nic_drv"/> </service>
+			<any-service> <parent/> <any-child/> </any-service>
+		</route>
+	</start>
+</config>}
+
+#
+# Boot image
+#
+
+build_boot_image { 
+	core 
+	init 
+	ld.lib.so 
+	libc.lib.so 
+	linux_nic_drv
+	lxip.lib.so
+	test-socket 
+	timer
+	vfs
+	vfs_lxip.lib.so vfs 
+ }
+
+append qemu_args " -nographic "
+
+run_genode_until forever
+run_genode_until "hello test completed.*\n" 10
