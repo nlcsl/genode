@@ -90,6 +90,11 @@ static int fetchurl(Genode::Xml_node config_node)
 			}
 		}
 
+		if (access(out_path, F_OK) != -1) {
+			Genode::log("deleting old file ", out_path);
+			remove(out_path);
+		}
+
 		int fd = open(out_path, O_CREAT | O_RDWR);
 		if (fd == -1) {
 			switch (errno) {
