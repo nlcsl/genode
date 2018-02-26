@@ -353,13 +353,11 @@ void Rom_filter::Main::_evaluate_node(Xml_node node, Xml_generator &xml)
 			String const sub_node =
 				node.attribute_value("sub_node", String());
 
-			if (!sub_node.valid())
-				return;
-
 			try {
 				Xml_node input_node = _input_rom_registry.xml(input_name);
 
-				input_node.for_each_sub_node(sub_node.string(),
+				input_node.for_each_sub_node(sub_node.valid() ? 
+					sub_node.string() : nullptr,
 				[&] (Xml_node node) { xml.append(node.addr(), node.size()); });
 			} catch (...) { }
 		}
