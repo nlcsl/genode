@@ -88,6 +88,32 @@ class Rom_filter::Input_rom_registry
 				Genode::Signal_handler<Entry> _rom_changed_handler =
 					{ _env.ep(), *this, &Entry::_handle_rom_changed };
 
+				static Xml_node _filtered_sub_node(Node_type_name type,
+				                                   Xml_node const &path,
+				                                   Xml_node const &content)
+				{
+					Attribute_name attr_name =
+						path.attribute_value("attribute_name", Attribute_name(""));
+					Input_value attr_value =
+						path.attribute_value("attribute_value", Input_value(""));
+
+					Xml_node sub_node = content.sub_node(type.string());
+
+					for (;; sub_node = sub_node.next(type.string())) {
+						if (attr_value.valid()) {
+							if (attr_value == sub_node.attribute_value(attr_name.string(), Input_value("") ) )
+							{
+								break;
+							}
+						}
+						else if (sub_node.has_attribute(attr_name.string())) {
+							break;
+						}
+					}
+
+					return sub_node;
+				}
+
 				/**
 				 * Query value from XML-structured ROM content
 				 *
@@ -122,7 +148,15 @@ class Rom_filter::Input_rom_registry
 							Node_type_name const sub_node_type =
 								path.attribute_value("type", Node_type_name(""));
 
-							content = content.sub_node(sub_node_type.string());
+							/*
+							* Optionally match attributes
+							*/
+							if (path.has_attribute("attribute_name")) {
+							       content = _filtered_sub_node(sub_node_type, path, content);
+							} else {
+							       content = content.sub_node(sub_node_type.string());
+							}
+
 							path    = path.sub_node();
 
 							continue;
