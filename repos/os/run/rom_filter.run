@@ -49,13 +49,47 @@ append config {
 				</inline>
 				<sleep milliseconds="1000" />
 				<inline description="enable X-ray mode">
-					<xray enabled="yes"/>
+					<xray enabled="yes"><xray/></xray>
 				</inline>
 				<sleep milliseconds="1000" />
 				<inline description="leave X-ray mode undefined">
 					<xray/> <!-- undefined -->
 				</inline>
 				<sleep milliseconds="1000" />
+			</rom>
+		</config>
+	</start>
+
+	<start name="dynamic_rom_2">
+		<binary name="dynamic_rom"/>
+		<resource name="RAM" quantum="4M"/>
+		<provides><service name="ROM"/></provides>
+		<config verbose="yes">
+			<rom name="state">
+				<inline description="client session open">
+					<state>
+						<child name="test">
+							<provided>
+								<service name="Hello"/>
+							</provided>
+						</child>
+						<child name="test2">
+							<provided/>
+						</child>
+					</state>
+				</inline>
+				<sleep milliseconds="4000" />
+				<inline description="no client sessions">
+					<state>
+						<child name="test">
+							<provided/>
+						</child>
+						<child name="test2">
+							<provided/>
+						</child>
+					</state>
+				</inline>
+				<sleep milliseconds="4000" />
 				<inline description="finished"/>
 			</rom>
 		</config>
@@ -70,17 +104,27 @@ append config {
 				<attribute name="enabled" />
 			</input>
 
+			<input name="state">
+				<node type="child" attribute_name="name" attribute_value="test">
+					<node type="provided">
+						<node type="service">
+							<attribute name="name" />
+						</node>
+					</node>
+				</node>
+			</input>
+
 			<output node="config">
 				<if>
-					<has_value input="xray_enabled" value="no" />
+					<has_value input="state" value="Hello" />
 					<then>
-						<inline><!-- .. flat window decorations ... --></inline>
+						<inline><!-- ... hello ... --></inline>
 					</then>
 					<else>
 						<if>
 							<has_value input="xray_enabled" value="yes" />
 							<then>
-								<inline><!-- ... colored window decorations ... --></inline>
+								<input name="xray"/>
 							</then>
 							<else>
 								<inline><!-- ... fallback ... --></inline>
@@ -93,6 +137,7 @@ append config {
 		</config>
 		<route>
 			<service name="ROM" label="xray"> <child name="dynamic_rom"/> </service>
+			<service name="ROM" label="state"> <child name="dynamic_rom_2"/> </service>
 			<any-service> <parent/> </any-service>
 		</route>
 	</start>
@@ -119,7 +164,7 @@ build_boot_image $boot_modules
 
 append qemu_args " -nographic "
 
-run_genode_until {.*xray: change \(finished\).*\n} 20
+run_genode_until {.*state: change \(finished\).*\n} 20
 
 # pay only attention to the output of the rom_logger
 grep_output {^\[init -> rom_logger\] .+}
@@ -128,11 +173,19 @@ trim_lines
 
 compare_output_to {
 [init -> rom_logger] ROM 'generated':
+[init -> rom_logger]   <config><!-- ... hello ... --></config>
+[init -> rom_logger] ROM 'generated':
+[init -> rom_logger]   <config><!-- ... hello ... --></config>
+[init -> rom_logger] ROM 'generated':
+[init -> rom_logger]   <config><!-- ... hello ... --></config>
+[init -> rom_logger] ROM 'generated':
+[init -> rom_logger]   <config><!-- ... hello ... --></config>
+[init -> rom_logger] ROM 'generated':
 [init -> rom_logger]   <config><!-- ... fallback ... --></config>
 [init -> rom_logger] ROM 'generated':
-[init -> rom_logger]   <config><!-- .. flat window decorations ... --></config>
+[init -> rom_logger]   <config><!-- ... fallback ... --></config>
 [init -> rom_logger] ROM 'generated':
-[init -> rom_logger]   <config><!-- ... colored window decorations ... --></config>
+[init -> rom_logger]   <config><xray/></config>
 [init -> rom_logger] ROM 'generated':
 [init -> rom_logger]   <config><!-- ... fallback ... --></config>
 }
