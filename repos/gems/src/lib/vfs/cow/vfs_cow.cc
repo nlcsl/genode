@@ -11,9 +11,6 @@
  * under the terms of the GNU Affero General Public License version 3.
  */
 
-#ifndef _SRC__VFS__COW_FILE_SYSTEM_H_
-#define _SRC__VFS__COW_FILE_SYSTEM_H_
-
 #include <vfs/env.h>
 #include <vfs/file_system_factory.h>
 #include <vfs/vfs_handle.h>
@@ -186,6 +183,18 @@ class Vfs_cow::File_system : public Vfs::File_system
 			}
 		};
 
+		void _loop_detect(Absolute_path const &path)
+		{
+			Stat sb;
+			sb.inode = sb.device = (addr_t)this;
+			if (_root_dir.stat(path.string(), sb) == STAT_OK
+			 && (sb.inode == (addr_t)this || sb.device == (addr_t)this))
+			{
+				error("COW loop detected in ", path);
+				throw Exception();
+			}
+		}
+
 	public:
 
 		File_system(Vfs::Env &vfs_env, Genode::Xml_node config)
@@ -204,6 +213,12 @@ class Vfs_cow::File_system : public Vfs::File_system
 		/***********************
 		 ** Directory service **
 		 ***********************/
+
+		void apply_config(Genode::Xml_node const &) override
+		{
+			_loop_detect(_ro_path("__VFS_COW"));
+			_loop_detect(_rw_path("__VFS_COW"));
+		}
 
 		Genode::Dataspace_capability dataspace(const char *path) override
 		{
@@ -302,7 +317,7 @@ class Vfs_cow::File_system : public Vfs::File_system
 				Cow_dir_handle *h = static_cast<Cow_dir_handle*>(vfs_handle);
 				destroy(h->alloc(), h);
 			} else {
-				Genode::error("unknown handle");
+				Genode::error("handle closed at wrong file-system!");
 			}
 		}
 
@@ -323,6 +338,13 @@ class Vfs_cow::File_system : public Vfs::File_system
 
 		Stat_result stat(const char *path, Vfs::Directory_service::Stat &buf) override
 		{
+			/* is this plugin self-aware? */
+			if (buf.inode  == (Genode::addr_t)this
+			 || buf.device == (Genode::addr_t)this) {
+				buf.inode = buf.device = (Genode::addr_t)this;
+				return STAT_OK;
+			}
+
 			Stat_result res = _root_dir.stat(_rw_path(path).string(), buf);
 			if (res != STAT_OK)
 				res = _root_dir.stat(_ro_path(path).string(), buf);
@@ -495,6 +517,3 @@ extern "C" Vfs::File_system_factory *vfs_file_system_factory(void)
 	static Factory factory;
 	return &factory;
 }
-
-
-#endif /* _SRC__VFS__COW_FILE_SYSTEM_H_ */
