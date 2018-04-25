@@ -146,7 +146,7 @@ int rumpuser_init(int version, const struct rumpuser_hyperup *hyp)
 static size_t _rump_memlimit = 0;
 
 
-void rump_set_memlimit(size_t limit)
+void rump_set_memlimit(Genode::size_t limit)
 {
 	_rump_memlimit = limit;
 }
@@ -182,8 +182,8 @@ int rumpuser_getparam(const char *name, void *buf, size_t buflen)
 		 * Set RAM limit and reserve a 10th or at least 1MiB for
 		 * Genode meta-data.
 		 */
-		size_t       rump_ram = _rump_memlimit;
-		size_t const reserve  = Genode::max((size_t)MIN_RESERVE_MEM, rump_ram / 10);
+		Genode::size_t rump_ram = _rump_memlimit;
+		size_t const   reserve  = Genode::max((size_t)MIN_RESERVE_MEM, rump_ram / 10);
 
 		if (reserve < MIN_RESERVE_MEM) {
 			Genode::error("could not reserve enough RAM for meta-data, need at least ",
