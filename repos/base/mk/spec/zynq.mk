@@ -1,8 +1,8 @@
 #
 # Pull in CPU specifics
 #
-SPECS += arm_v7
+SPECS += cortex_a9 arm_v7a
 
 REP_INC_DIR += include/spec/zynq
 
-include $(BASE_DIR)/mk/spec/arm_v7.mk
+include $(BASE_DIR)/mk/spec/cortex_a9.mk

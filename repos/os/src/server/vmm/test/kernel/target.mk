@@ -1,4 +1,3 @@
-TARGET    = vmm-test-kernel
-REQUIRES  = arm_v7
+TARGET    = test-kernel
+REQUIRES  = hw_arndale
 SRC_S     = main.s
-CC_MARCH  = -mcpu=cortex-a15
