@@ -50,7 +50,12 @@ static void input_callback(enum input_event_type type,
 	switch (type) {
 	case EVENT_TYPE_PRESS:   submit(Press{Keycode(code)});    break;
 	case EVENT_TYPE_RELEASE: submit(Release{Keycode(code)});  break;
-	case EVENT_TYPE_MOTION:  submit(Relative_motion{rx, ry}); break;
+	case EVENT_TYPE_MOTION:
+		if (rx == 0 && ry == 0)
+			submit(Absolute_motion{ax, ay});
+		else
+			submit(Relative_motion{rx, ry});
+		break;
 	case EVENT_TYPE_WHEEL:   submit(Wheel{rx, ry});           break;
 	case EVENT_TYPE_TOUCH:
 		{
