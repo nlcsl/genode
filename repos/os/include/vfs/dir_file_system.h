@@ -45,7 +45,7 @@ class Vfs::Dir_file_system : public File_system
 		 *
 		 * Additionally, the root has an empty _name.
 		 */
-		bool const _vfs_root;
+		bool const _vfs_root { &_env.root_dir() == this };
 
 		struct Dir_vfs_handle : Vfs_handle
 		{
@@ -367,12 +367,12 @@ class Vfs::Dir_file_system : public File_system
 		                Genode::Xml_node     node,
 		                File_system_factory &fs_factory)
 		:
-			_env(env), _vfs_root(!node.has_type("dir"))
+			_env(env)
 		{
 			using namespace Genode;
 
 			/* remember directory name */
-			if (_vfs_root)
+			if (node.has_type("fstab") || node.has_type("vfs"))
 				_name[0] = 0;
 			else
 				node.attribute("name").value(_name, sizeof(_name));
@@ -407,14 +407,6 @@ class Vfs::Dir_file_system : public File_system
 					}
 				} catch (Xml_node::Nonexistent_attribute) { }
 			}
-
-			/*
-			 * Propagate the config to sub-file-systems now that everything
-			 * has been inserted. This allows plugins to configure themselves
-			 * using the complete composition.
-			 */
-			if (_vfs_root)
-				apply_config(node);
 		}
 
 		/*********************************
