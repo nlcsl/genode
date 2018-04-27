@@ -243,6 +243,9 @@ void Session_component::submit_input_event(Input::Event e)
 	e.handle_absolute_motion([&] (int x, int y) {
 		e = Absolute_motion{max(0, x - origin_offset.x()),
 		                    max(0, y - origin_offset.y())}; });
+	e.handle_touch([&] (Touch_id id, float x, float y) {
+		e = Touch{ id, max(0.0f, x - origin_offset.x()),
+		               max(0.0f, y - origin_offset.y())}; });
 
 	_input_session_component.submit(&e);
 }

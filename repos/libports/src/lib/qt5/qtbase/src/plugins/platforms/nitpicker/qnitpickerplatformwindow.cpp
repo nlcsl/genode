@@ -55,6 +55,11 @@ void QNitpickerPlatformWindow::_process_touch_events(QList<Input::Event> const &
 
 		i->handle_touch([&] (Input::Touch_id id, int x, int y) {
 
+			if (id.value >= _touch_points.size()) {
+				Genode::warning("drop touch input, out of bounds");
+				return;
+			}
+
 			QWindowSystemInterface::TouchPoint &otp = _touch_points[id.value];
 			QWindowSystemInterface::TouchPoint tp;
 
@@ -73,6 +78,11 @@ void QNitpickerPlatformWindow::_process_touch_events(QList<Input::Event> const &
 		});
 
 		i->handle_touch_release([&] (Input::Touch_id id) {
+
+			if (id.value >= _touch_points.size()) {
+				Genode::warning("drop touch input, out of bounds");
+				return;
+			}
 
 			QWindowSystemInterface::TouchPoint &otp = _touch_points[id.value];
 			QWindowSystemInterface::TouchPoint tp;
