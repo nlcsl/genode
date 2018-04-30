@@ -174,6 +174,7 @@ struct Rom_filter::Main : Input_rom_registry::Input_rom_changed_fn,
 
 	size_t _xml_output_len = 0;
 
+	bool _evaluate_conditional(Xml_node node);
 	void _evaluate_node(Xml_node node, Xml_generator &xml);
 	void _evaluate();
 
@@ -249,6 +250,55 @@ struct Rom_filter::Main : Input_rom_registry::Input_rom_changed_fn,
 };
 
 
+bool Rom_filter::Main::_evaluate_conditional(Xml_node node)
+{
+	if (node.has_type("has_value")) {
+
+		Input_name const input_name =
+			node.attribute_value("input", Input_name());
+
+		Input_value const expected_input_value =
+			node.attribute_value("value", Input_value());
+
+		try {
+			Input_value const input_value =
+				_input_rom_registry.query_value(_config.xml(), input_name);
+
+			if (input_value == expected_input_value)
+				return true;
+		}
+		catch (Input_rom_registry::Nonexistent_input_value) {
+			if (_verbose)
+				Genode::warning("could not obtain input value for input ", input_name);
+		}
+
+		return false;
+	} else if (node.has_type("or")) {
+		bool result = false;
+
+		auto evaluate_or = [&] (Xml_node node) {
+			result |= _evaluate_conditional(node);
+		};
+
+		node.for_each_sub_node(evaluate_or);
+
+		return result;
+	} else if (node.has_type("and")) {
+		bool result = false;
+
+		auto evaluate_and = [&] (Xml_node node) {
+			result &= _evaluate_conditional(node);
+		};
+
+		node.for_each_sub_node(evaluate_and);
+
+		return result;
+	} else {
+		return false;
+	}
+}
+
+
 void Rom_filter::Main::_evaluate_node(Xml_node node, Xml_generator &xml)
 {
 	auto process_output_sub_node = [&] (Xml_node node) {
@@ -258,32 +308,7 @@ void Rom_filter::Main::_evaluate_node(Xml_node node, Xml_generator &xml)
 			/*
 			 * Check condition
 			 */
-			bool condition_satisfied = false;
-
-			if (node.has_sub_node("has_value")) {
-
-				Xml_node const has_value_node = node.sub_node("has_value");
-
-				Input_name const input_name =
-					has_value_node.attribute_value("input", Input_name());
-
-				Input_value const expected_input_value =
-					has_value_node.attribute_value("value", Input_value());
-
-				try {
-					Input_value const input_value =
-						_input_rom_registry.query_value(_config.xml(), input_name);
-
-					if (input_value == expected_input_value)
-						condition_satisfied = true;
-				}
-				catch (Input_rom_registry::Nonexistent_input_value) {
-					if (_verbose)
-						Genode::warning("could not obtain input value for input ", input_name);
-				}
-			}
-
-			if (condition_satisfied) {
+			if (_evaluate_conditional(node.sub_node())) {
 				if (node.has_sub_node("then"))
 					_evaluate_node(node.sub_node("then"), xml);
 			} else {
