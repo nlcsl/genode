@@ -284,7 +284,7 @@ bool Rom_filter::Main::_evaluate_conditional(Xml_node node)
 
 		return result;
 	} else if (node.has_type("and")) {
-		bool result = false;
+		bool result = true;
 
 		auto evaluate_and = [&] (Xml_node node) {
 			result &= _evaluate_conditional(node);
@@ -294,6 +294,9 @@ bool Rom_filter::Main::_evaluate_conditional(Xml_node node)
 
 		return result;
 	} else {
+		if (_verbose)
+			Genode::warning("unknown node type ", node.type());
+
 		return false;
 	}
 }
